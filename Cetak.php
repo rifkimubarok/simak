@@ -247,7 +247,7 @@ class Cetak
                 break;
             case 2:
                 $this->cetak_kartu_uas($kode_jurusan,$tahun_angkatan,$awal,$akhir,$tahun_semester);
-                beak;
+                break;
             case 3:
                 $this->cetak_khs($kode_jurusan,$tahun_angkatan,$awal,$akhir);
                 break;
