@@ -156,7 +156,9 @@ class Cetak
     
     function cetak_khs($kode_jurusan,$tahun_angkatan,$awal,$akhir)
     {
-        $url = "https://simak.unsil.ac.id/us-unsil/mhsw/transkrip.khs.php"; // api untuk mencetak kartu
+        $url = "https://simak.unsil.ac.id/us-unsil/mhsw/transkrip.khs.lama.php";
+        // $url = "https://simak.unsil.ac.id/us-unsil/baa/transkripmhsw.php";
+        // $url = "https://simak.unsil.ac.id/us-unsil/mhsw/transkrip.khs.php"; // api untuk mencetak kartu
         $nomor = $tahun_angkatan.$kode_jurusan; // penggabungan kode jurusan dan 
         //pembuatan folder suai jurusan dan angkatan
         try{
@@ -176,7 +178,9 @@ class Cetak
             //parameter api untuk cetak kartu
             $param = http_build_query(array(
                 "_rnd"=>$this->generateRandomString(8),
-                "MhswID"=>$npm
+                "MhswID"=>$npm,
+                "gos"=>"_CetakTranskrip",
+                "jen"=>2
             ));
 
             //pengecekan jika file gagal di buat dan dibuka
@@ -186,7 +190,6 @@ class Cetak
 
             //memulai penginisialisasian api
             $ch = curl_init($url."?".$param);
-
             //hasil api disimpan ke dalam file
             curl_setopt($ch, CURLOPT_FILE, $file);
 
@@ -194,6 +197,77 @@ class Cetak
             curl_setopt($ch, CURLOPT_TIMEOUT, 20);
             // curl_setopt($ch, CURLOPT_POSTFIELDS, $param); //penyertaan parameter terhadap api
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); //mematikan handshaking SSL
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ["Cookie: LB=web1-srv;PHPSESSID=uj2sk3upj636vf8bmpmlj08ef4; PHPSESSID=s47sthb0okhen5rc3t8jrc27h0; LB=web1-srv"]); //mematikan handshaking SSL
+
+            //Execute the request.
+            curl_exec($ch);
+
+            //If there was an error, throw an Exception
+            if(curl_errno($ch)){
+                throw new Exception(curl_error($ch));
+            }
+
+            //Get the HTTP status code.
+            $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+            //Close the cURL handler.
+            curl_close($ch);
+
+            //Close the file handler.
+            fclose($file);
+
+            if($statusCode == 200){
+                printf("  Kartu Hasil Studi $npm Berhasil Diunduh.\n");
+            } else{
+                echo "Status Code: " . $statusCode;
+            }
+        }
+    }
+    
+    function cetak_transkrip($kode_jurusan,$tahun_angkatan,$awal,$akhir)
+    {
+        // $url = "https://simak.unsil.ac.id/us-unsil/mhsw/transkrip.khs.lama.php";
+        $url = "https://simak.unsil.ac.id/us-unsil/baa/transkripmhsw.php";
+        // $url = "https://simak.unsil.ac.id/us-unsil/mhsw/transkrip.khs.php"; // api untuk mencetak kartu
+        $nomor = $tahun_angkatan.$kode_jurusan; // penggabungan kode jurusan dan 
+        //pembuatan folder suai jurusan dan angkatan
+        try{
+            if(!file_exists($tahun_angkatan.$kode_jurusan."_transkrip")){
+                mkdir($tahun_angkatan.$kode_jurusan."_transkrip");
+            }
+        }catch(Exception $e){
+
+        }
+        for ($i=$awal;$i<=$akhir;$i++){ // perulangan menggunakan for
+            $no_induk = "000"; //digit nomor induk
+            $npm = $nomor.substr($no_induk,0,strlen($no_induk)-strlen($i)).$i; //proccess menghasilkan NPM diambil dari tahun angkatan,kodejurusan+fakultas+digit nomor induk
+            
+            $file = fopen($tahun_angkatan.$kode_jurusan."_transkrip/".$npm.".pdf", 'w+'); //pembuatan file kosong
+
+
+            //parameter api untuk cetak kartu
+            $param = http_build_query(array(
+                "_rnd"=>$this->generateRandomString(8),
+                "MhswID"=>$npm,
+                "gos"=>"_CetakTranskrip",
+                "jen"=>2
+            ));
+
+            //pengecekan jika file gagal di buat dan dibuka
+            if($file === false){
+                throw new Exception('Could not open: ' . $saveTo);
+            }
+
+            //memulai penginisialisasian api
+            $ch = curl_init($url."?".$param);
+            //hasil api disimpan ke dalam file
+            curl_setopt($ch, CURLOPT_FILE, $file);
+
+            //Timeout if the file doesn't download after 20 seconds.
+            curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+            // curl_setopt($ch, CURLOPT_POSTFIELDS, $param); //penyertaan parameter terhadap api
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); //mematikan handshaking SSL
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ["Cookie: LB=web1-srv;PHPSESSID=uj2sk3upj636vf8bmpmlj08ef4; PHPSESSID=s47sthb0okhen5rc3t8jrc27h0; LB=web1-srv"]); //mematikan handshaking SSL
 
             //Execute the request.
             curl_exec($ch);
@@ -251,6 +325,44 @@ class Cetak
             case 3:
                 $this->cetak_khs($kode_jurusan,$tahun_angkatan,$awal,$akhir);
                 break;
+            case 4:
+                $this->cetak_transkrip($kode_jurusan,$tahun_angkatan,$awal,$akhir);
+                break;
+            default:
+                exit;
+                break;
+        }
+    }
+
+    public function input_data_nilai($menu)
+    {
+        echo "  Masukan kodejurusan (7006)\t: ";
+        $input_kodejurusan =  trim(fgets(STDIN));
+        echo "  Masukan Tahun Angkatan (17)\t: ";
+        $input_angkatan =  trim(fgets(STDIN));
+        echo "  Masukan nomor awal (1)\t: ";
+        $input_awal =  trim(fgets(STDIN));
+        echo "  Masukan nomor akhir (10)\t: ";
+        $input_akhir =  trim(fgets(STDIN));
+
+
+        $kode_jurusan = $input_kodejurusan; //Kode jurusan
+        $tahun_angkatan = $input_angkatan; //Tahun angkatan 2 digit
+        $awal = $input_awal; // dimulai dari npm berapa, misal 1
+        $akhir = $input_akhir; // akhir npm , misal 20
+        switch ($menu) {
+            case 1:
+                $this->cetak_kartu_uts($kode_jurusan,$tahun_angkatan,$awal,$akhir,$tahun_semester);
+                break;
+            case 2:
+                $this->cetak_kartu_uas($kode_jurusan,$tahun_angkatan,$awal,$akhir,$tahun_semester);
+                break;
+            case 3:
+                $this->cetak_khs($kode_jurusan,$tahun_angkatan,$awal,$akhir);
+                break;
+            case 4:
+                $this->cetak_transkrip($kode_jurusan,$tahun_angkatan,$awal,$akhir);
+                break;
             default:
                 exit;
                 break;
@@ -268,7 +380,8 @@ class Cetak
             printf("  1. Cetak Kartu UTS \n");
             printf("  2. Cetak Kartu UAS \n");
             printf("  3. Cetak Kartu Hasil Studi \n");
-            printf("  4. Keluar \n");
+            printf("  4. Cetak Kartu Transkip Nilai Sementara \n");
+            printf("  5. Keluar \n");
             printf("|==========================================|\n");
             printf("  Silahkan Pilih Menu : ");
             $menu =  trim(fgets(STDIN));
@@ -280,9 +393,12 @@ class Cetak
                     $this->input_data($menu);
                     break;
                 case 3:
-                    $this->input_data($menu);
+                    $this->input_data_nilai($menu);
                     break;
                 case 4:
+                    $this->input_data_nilai($menu);
+                    break;
+                case 5:
                     printf("Terimasih Sudah Menggunakan Aplikasi.\n");
                     $status = false;
                     break;
@@ -304,4 +420,3 @@ class Cetak
 
 $cetak = new Cetak();
 $cetak->show_menu();
-
